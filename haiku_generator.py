@@ -23,13 +23,13 @@ def respond(err, res=None):
 
 
 def lambda_handler(event, context):
-    qs_params = event["queryStringParameters"]
-    if "keyword" not in qs_params:
+    if not event or "queryStringParameters" not in event or not event["queryStringParameters"] or "keyword" not in event["queryStringParameters"]:
         return respond(
             None,
             "Please add a keyword parameter ex: https://haiku.kremer.dev/?keyword=potato "
             "- starts_with parameter is optional ex: https://haiku.kremer.dev/?keyword=potato&starts_with=v",
         )
+    qs_params = event["queryStringParameters"]
     keyword = qs_params["keyword"]
 
     if "starts_with" in qs_params:
