@@ -9,6 +9,6 @@ Uses the http://www.datamuse.com/api/ for getting all the words used in generati
 
 TO DO
 -----
-* Add directions at base level of endpoint (if no parameters added)
+* ~~Add directions at base level of endpoint (if no parameters added)~~
 * Code Cleanup
 * "API" documentation

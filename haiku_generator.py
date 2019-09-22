@@ -6,9 +6,9 @@ import time
 import json
 
 
-DATAMUSE_APIBASE = "https://api.datamuse.com/words?md=sp&sp=s*"
+DATAMUSE_FULL_APIBASE = "https://api.datamuse.com/words?md=sp&sp=s*"
 DATAMUSE_APIBASE = "https://api.datamuse.com/words?md=sp"
-# DATAMUSE_LIMIT_ARG = "&max={}"
+DATAMUSE_LIMIT_ARG = "&max={}"
 DATAMUSE_STARTSWITH_ARG = "&sp={}*"
 LINE_SPACE = "\n"
 
@@ -45,6 +45,8 @@ def lambda_handler(event, context):
 
 
 class PoemGenerator:
+    """ Parent Class that gathers all the words """
+
     def __init__(self, word: str = "", starts_with: str = ""):
         self.word = word
         self.starts_with = starts_with
@@ -147,7 +149,6 @@ class PoemGenerator:
         return self.following_words
 
     def get_all_nouns(self, word: str = "") -> list:
-        word = word if word else self.word
         nouns = self.nouns
         nouns.extend(self.synonyms)
         nouns.extend(self.associated_words)
@@ -159,7 +160,6 @@ class PoemGenerator:
         return self.all_nouns
 
     def get_all_verbs(self, word: str = "") -> list:
-        word = word if word else self.word
         verbs = self.verbs
         verbs.extend(self.synonyms)
         verbs.extend(self.associated_words)
@@ -171,7 +171,6 @@ class PoemGenerator:
         return self.all_verbs
 
     def get_all_adjectives(self, word: str = "") -> list:
-        word = word if word else self.word
         adjectives = self.adjectives
         adjectives.extend(self.synonyms)
         adjectives.extend(self.associated_words)
@@ -185,60 +184,61 @@ class PoemGenerator:
         return self.all_adjectives
 
 
-#     def get_all_adverbs(self, word: str="") -> list:
-#         word = word if word else self.word
-#         verbs = self.verbs
-#         verbs.extend(self.associated_words)
-#         verbs.extend(self.kindof_words)
-#         verbs.extend(self.preceding_words)
-#         verbs.extend(self.following_words)
-#         verbs = [word for word in verbs if "tags" in word and "v" in word["tags"]]
-#         self.all_verbs = list({verb["word"]:verb for verb in verbs}.values())
-#         return self.all_verbs
-
-
-#     def get_all_nouns(self, word: str="") -> list:
-#         word = word if word else self.word
-#         nouns = self.get_nouns(word)
-#         nouns.extend([word for word in self.get_associated_words(word) if "tags" in word and "n" in word["tags"]])
-#         nouns.extend([word for word in self.get_synonyms(word) if "tags" in word and "n" in word["tags"]])
-#         nouns.extend([word for word in self.get_kindof_words(word) if "tags" in word and "n" in word["tags"]])
-#         nouns.extend([word for word in self.get_preceding_words(word) if "tags" in word and "n" in word["tags"]])
-#         nouns.extend([word for word in self.get_following_words(word) if "tags" in word and "n" in word["tags"]])
-#         return list({noun["word"]:noun for noun in nouns}.values())
+    # def get_all_adverbs(self, word: str="") -> list:
+    #     word = word if word else self.word
+    #     verbs = self.verbs
+    #     verbs.extend(self.associated_words)
+    #     verbs.extend(self.kindof_words)
+    #     verbs.extend(self.preceding_words)
+    #     verbs.extend(self.following_words)
+    #     verbs = [word for word in verbs if "tags" in word and "v" in word["tags"]]
+    #     self.all_verbs = list({verb["word"]:verb for verb in verbs}.values())
+    #     return self.all_verbs
+    #
+    #
+    # def get_all_nouns(self, word: str="") -> list:
+    #     word = word if word else self.word
+    #     nouns = self.get_nouns(word)
+    #     nouns.extend([word for word in self.get_associated_words(word) if "tags" in word and "n" in word["tags"]])
+    #     nouns.extend([word for word in self.get_synonyms(word) if "tags" in word and "n" in word["tags"]])
+    #     nouns.extend([word for word in self.get_kindof_words(word) if "tags" in word and "n" in word["tags"]])
+    #     nouns.extend([word for word in self.get_preceding_words(word) if "tags" in word and "n" in word["tags"]])
+    #     nouns.extend([word for word in self.get_following_words(word) if "tags" in word and "n" in word["tags"]])
+    #     return list({noun["word"]:noun for noun in nouns}.values())
 
 
 class HaikuGenerator(PoemGenerator):
-    def build_haiku(self, word=None) -> list:
 
-        if not word:
-            word = self.word
+    def build_haiku(self, word=None) -> list:
 
         haiku_syllables = [5, 7, 5]
         haiku_result = []
 
+        if not word:
+            word = self.word
+
+
         current_wordtype = random.choice(["adj", "n", "v"])
 
-        prevWord = ""
-
-        #         nouns = self.all_nouns
-        #         verbs = self.get_verbs(word)
-        #         adjectives = self.get_adjectives(word)
-
-        #         structure_mapping = {
-        #             "noun": {"next": ["verb"]},
-        #             "verb": {"next": ["noun", "adjective", "adverb"]},
-        #             "adjective": {"next": ["noun"]},
-        #             "adverb": {"next": ["verb", "adjective", "adverb"]},
-        #         }
+        # nouns = self.all_nouns
+        # verbs = self.get_verbs(word)
+        # adjectives = self.get_adjectives(word)
+        #
+        # structure_mapping = {
+        #     "noun": {"next": ["verb"]},
+        #     "verb": {"next": ["noun", "adjective", "adverb"]},
+        #     "adjective": {"next": ["noun"]},
+        #     "adverb": {"next": ["verb", "adjective", "adverb"]},
+        # }
 
         structure_mapping = {
             # removed adverbs for now
             "n": {"next": "v", "wordlist": self.get_all_nouns(word)},
             "v": {"next": "adj", "wordlist": self.get_all_verbs(word)},
             "adj": {"next": "n", "wordlist": self.get_adjectives(word)},
-            #             "adverb": {"next": random.choice(["verb", "adjective"]),
-            #                     "wordlist": get_all_adverbs(word)},
+            # "adverb": {"next": random.choice(["verb", "adjective"]),
+            #            "wordlist": get_all_adverbs(word)
+            #            },
         }
 
         used_words = []
