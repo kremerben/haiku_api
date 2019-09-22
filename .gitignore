@@ -1,0 +1,26 @@
+.DS_Store
+.AppleDouble
+.LSOverride
+
+*.py[cod]
+
+# Logs
+logs
+*.log
+pip-log.txt
+npm-debug.log*
+
+# Pycharm
+iris/.idea/*
+.idea/*
+
+.env
+.venv
+
+staticfiles/
+local.py
+.cache/
+
+lab-*
+lam*/*
+
