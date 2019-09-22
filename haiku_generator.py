@@ -73,7 +73,7 @@ class PoemGenerator:
         self.get_nouns(word)
         self.get_verbs(word)
         self.get_adjectives(word)
-        #         self.get_adverbs(word)
+        # self.get_adverbs(word)
         # print('time0001:: ', time.time() - start_time)
         self.get_associated_words(word)
         self.get_synonyms(word)
@@ -148,63 +148,36 @@ class PoemGenerator:
         self.following_words = self.request_words(f"{DATAMUSE_APIBASE}&rel_bga={word}")
         return self.following_words
 
+    def indirectly_extend_word_lists(self, word_type_identifier="n"):
+        extra_words = []
+        extra_words.extend(self.synonyms)
+        extra_words.extend(self.associated_words)
+        extra_words.extend(self.kindof_words)
+        extra_words.extend(self.preceding_words)
+        extra_words.extend(self.following_words)
+        return [word for word in extra_words if "tags" in word and word_type_identifier in word["tags"]]
+
     def get_all_nouns(self, word: str = "") -> list:
-        nouns = self.nouns
-        nouns.extend(self.synonyms)
-        nouns.extend(self.associated_words)
-        nouns.extend(self.kindof_words)
-        nouns.extend(self.preceding_words)
-        nouns.extend(self.following_words)
-        nouns = [word for word in nouns if "tags" in word and "n" in word["tags"]]
-        self.all_nouns = list({noun["word"]: noun for noun in nouns}.values())
+        self.nouns.extend(self.indirectly_extend_word_lists("n"))
+        self.all_nouns = list({noun["word"]: noun for noun in self.nouns}.values())
         return self.all_nouns
 
     def get_all_verbs(self, word: str = "") -> list:
-        verbs = self.verbs
-        verbs.extend(self.synonyms)
-        verbs.extend(self.associated_words)
-        verbs.extend(self.kindof_words)
-        verbs.extend(self.preceding_words)
-        verbs.extend(self.following_words)
-        verbs = [word for word in verbs if "tags" in word and "v" in word["tags"]]
-        self.all_verbs = list({verb["word"]: verb for verb in verbs}.values())
+        self.verbs.extend(self.indirectly_extend_word_lists("v"))
+        self.all_verbs = list({verb["word"]: verb for verb in self.verbs}.values())
         return self.all_verbs
 
     def get_all_adjectives(self, word: str = "") -> list:
-        adjectives = self.adjectives
-        adjectives.extend(self.synonyms)
-        adjectives.extend(self.associated_words)
-        adjectives.extend(self.kindof_words)
-        adjectives.extend(self.preceding_words)
-        adjectives.extend(self.following_words)
-        adjectives = [word for word in adjectives if "tags" in word and "adj" in word["tags"]]
+        self.adjectives.extend(self.indirectly_extend_word_lists("adj"))
         self.all_adjectives = list(
-            {adjective["word"]: adjective for adjective in adjectives}.values()
+            {adjective["word"]: adjective for adjective in self.adjectives}.values()
         )
         return self.all_adjectives
 
-
-    # def get_all_adverbs(self, word: str="") -> list:
-    #     word = word if word else self.word
-    #     verbs = self.verbs
-    #     verbs.extend(self.associated_words)
-    #     verbs.extend(self.kindof_words)
-    #     verbs.extend(self.preceding_words)
-    #     verbs.extend(self.following_words)
-    #     verbs = [word for word in verbs if "tags" in word and "v" in word["tags"]]
-    #     self.all_verbs = list({verb["word"]:verb for verb in verbs}.values())
-    #     return self.all_verbs
-    #
-    #
-    # def get_all_nouns(self, word: str="") -> list:
-    #     word = word if word else self.word
-    #     nouns = self.get_nouns(word)
-    #     nouns.extend([word for word in self.get_associated_words(word) if "tags" in word and "n" in word["tags"]])
-    #     nouns.extend([word for word in self.get_synonyms(word) if "tags" in word and "n" in word["tags"]])
-    #     nouns.extend([word for word in self.get_kindof_words(word) if "tags" in word and "n" in word["tags"]])
-    #     nouns.extend([word for word in self.get_preceding_words(word) if "tags" in word and "n" in word["tags"]])
-    #     nouns.extend([word for word in self.get_following_words(word) if "tags" in word and "n" in word["tags"]])
-    #     return list({noun["word"]:noun for noun in nouns}.values())
+    # def get_all_adverbs(self, word: str = "") -> list:
+    #     self.adverbs.extend(self.indirectly_extend_word_lists("v"))
+    #     self.all_adverbs = list({adverb["word"]: adverb for adverb in self.adverbs}.values())
+    #     return self.all_adverbs
 
 
 class HaikuGenerator(PoemGenerator):
@@ -216,7 +189,6 @@ class HaikuGenerator(PoemGenerator):
 
         if not word:
             word = self.word
-
 
         current_wordtype = random.choice(["adj", "n", "v"])
 
@@ -256,7 +228,7 @@ class HaikuGenerator(PoemGenerator):
                     for _word in structure_mapping[current_wordtype]["wordlist"]
                     if ("numSyllables" in _word and _word["numSyllables"] <= syllable_target)
                 ]
-                #                 current_words = structure_mapping[current_wordtype]["wordlist"]
+                #  current_words = structure_mapping[current_wordtype]["wordlist"]
                 word_to_add = random.choice(current_words) if current_words else None
 
                 if word_to_add and word_to_add["word"] in used_words and error_count < 10:
@@ -265,7 +237,7 @@ class HaikuGenerator(PoemGenerator):
 
                 elif word_to_add:
                     used_words.append(word_to_add["word"])
-                    #                     current_line.append(word_to_add["word"]+":"+current_wordtype)
+                    #  current_line.append(word_to_add["word"]+":"+current_wordtype)
                     current_line.append(word_to_add["word"])
                     syllable_target -= word_to_add["numSyllables"]
 
@@ -299,16 +271,8 @@ def main():
 
     pg = HaikuGenerator(word=keyword, starts_with=starts_with)
 
-    # pg.get_preceding_words("carrot")
-
     print(pg.build_haiku())
 
-    # n = int(sys.stdin.readline())
-    # for line in sys.stdin:
-    #     db.ingest_boms(line)
-
-    # result = db.to_json(n)
-    # sys.stdout.write(result)
 
     # # very basic tests
     # assert isinstance(result, str)

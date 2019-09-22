@@ -11,4 +11,4 @@ TO DO
 -----
 * ~~Add directions at base level of endpoint (if no parameters added)~~
 * Code Cleanup
-* "API" documentation
+* ~~"API" documentation~~
