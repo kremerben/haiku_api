@@ -23,7 +23,11 @@ def respond(err, res=None):
 
 
 def lambda_handler(event, context):
-    if not event or "queryStringParameters" not in event or not event["queryStringParameters"] or "keyword" not in event["queryStringParameters"]:
+    if (
+        not event
+        or event.get("queryStringParameters")
+        or "keyword" not in event["queryStringParameters"]
+    ):
         return respond(
             None,
             "Please add a keyword parameter ex: https://haiku.kremer.dev/?keyword=potato "
@@ -155,7 +159,9 @@ class PoemGenerator:
         extra_words.extend(self.kindof_words)
         extra_words.extend(self.preceding_words)
         extra_words.extend(self.following_words)
-        return [word for word in extra_words if "tags" in word and word_type_identifier in word["tags"]]
+        return [
+            word for word in extra_words if "tags" in word and word_type_identifier in word["tags"]
+        ]
 
     def get_all_nouns(self, word: str = "") -> list:
         self.nouns.extend(self.indirectly_extend_word_lists("n"))
@@ -181,7 +187,6 @@ class PoemGenerator:
 
 
 class HaikuGenerator(PoemGenerator):
-
     def build_haiku(self, word=None) -> list:
 
         haiku_syllables = [5, 7, 5]
@@ -208,7 +213,7 @@ class HaikuGenerator(PoemGenerator):
             "n": {"next": "v", "wordlist": self.get_all_nouns(word)},
             "v": {"next": "adj", "wordlist": self.get_all_verbs(word)},
             "adj": {"next": "n", "wordlist": self.get_adjectives(word)},
-            # "adverb": {"next": random.choice(["verb", "adjective"]),
+            # "adverb": {"next": random.choice(["v", "adj"]),
             #            "wordlist": get_all_adverbs(word)
             #            },
         }
@@ -253,9 +258,7 @@ class HaikuGenerator(PoemGenerator):
 
 
 def main():
-    # This command-line parsing code is provided.
-    # Make a list of command line arguments, omitting the [0] element
-    # which is the script itself.
+    # Make a list of command line arguments, omitting the [0] element which is the script itself.
     import sys
 
     args = sys.argv[1:]
@@ -272,7 +275,6 @@ def main():
     pg = HaikuGenerator(word=keyword, starts_with=starts_with)
 
     print(pg.build_haiku())
-
 
     # # very basic tests
     # assert isinstance(result, str)
