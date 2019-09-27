@@ -1,5 +1,6 @@
 import json
 import random
+
 # from botocore.vendored import requests  # for AWS lambda
 import requests  # for local development
 from typing import Tuple
@@ -57,7 +58,7 @@ class PoemGenerator:
         self.nouns = self.get_nouns(word)
         self.verbs = self.get_verbs(word)
         self.adjectives = self.get_adjectives(word)
-        # self.adverbs =  self.get_adverbs(word)
+
         self.associated_words = self.get_associated_words(word)
         self.synonyms = self.get_synonyms(word)
         self.kindof_words = self.get_kindof_words(word)
@@ -67,14 +68,13 @@ class PoemGenerator:
         self.all_nouns = self.get_all_nouns(word)
         self.all_verbs = self.get_all_verbs(word)
         self.all_adjectives = self.get_all_adjectives(word)
-        # self.all_adverbs = []
-
+        self.all_adverbs = self.get_all_adverbs(word)
 
     def request_words(self, url, starts_with: str = "") -> list:
         """
             Simple request generator with limit
             :param url: request url
-            :param limit: number of values to return, 0 for no limit
+            :param starts_with: only return words that start with this letter
             Return:
                 [{'word': 'level', 'score': 31451, 'numSyllables': 2},
                  {'word': 'water', 'score': 16450, 'numSyllables': 2}]
@@ -107,24 +107,19 @@ class PoemGenerator:
 
     def get_associated_words(self, word: str) -> list:
         """ Trigger words """
-        self.associated_words = self.request_words(f"{DATAMUSE_APIBASE}&rel_trg={word}")
-        return self.associated_words
+        return self.request_words(f"{DATAMUSE_APIBASE}&rel_trg={word}")
 
     def get_synonyms(self, word: str) -> list:
-        self.synonyms = self.request_words(f"{DATAMUSE_APIBASE}&rel_syn={word}")
-        return self.synonyms
+        return self.request_words(f"{DATAMUSE_APIBASE}&rel_syn={word}")
 
     def get_kindof_words(self, word: str) -> list:
-        self.kindof_words = self.request_words(f"{DATAMUSE_APIBASE}&rel_spc={word}")
-        return self.kindof_words
+        return self.request_words(f"{DATAMUSE_APIBASE}&rel_spc={word}")
 
     def get_preceding_words(self, word: str) -> list:
-        self.preceding_words = self.request_words(f"{DATAMUSE_APIBASE}&rel_bgb={word}")
-        return self.preceding_words
+        return self.request_words(f"{DATAMUSE_APIBASE}&rel_bgb={word}")
 
     def get_following_words(self, word: str) -> list:
-        self.following_words = self.request_words(f"{DATAMUSE_APIBASE}&rel_bga={word}")
-        return self.following_words
+        return self.request_words(f"{DATAMUSE_APIBASE}&rel_bga={word}")
 
     def indirectly_extend_word_lists(self, word_type_identifier="n"):
         extra_words = []
@@ -139,26 +134,20 @@ class PoemGenerator:
 
     def get_all_nouns(self, word: str = "") -> list:
         self.nouns.extend(self.indirectly_extend_word_lists("n"))
-        self.all_nouns = list({noun["word"]: noun for noun in self.nouns}.values())
-        return self.all_nouns
+        return list({noun["word"]: noun for noun in self.nouns}.values())
 
     def get_all_verbs(self, word: str = "") -> list:
         self.verbs.extend(self.indirectly_extend_word_lists("v"))
-        self.all_verbs = list({verb["word"]: verb for verb in self.verbs}.values())
-        return self.all_verbs
+        return list({verb["word"]: verb for verb in self.verbs}.values())
 
     def get_all_adjectives(self, word: str = "") -> list:
         self.adjectives.extend(self.indirectly_extend_word_lists("adj"))
-        self.all_adjectives = list(
-            {adjective["word"]: adjective for adjective in self.adjectives}.values()
-        )
-        return self.all_adjectives
+        return list({adjective["word"]: adjective for adjective in self.adjectives}.values())
 
     def get_all_adverbs(self, word: str = "") -> list:
         """ Not yet in use """
-        self.adverbs.extend(self.indirectly_extend_word_lists("v"))
-        self.all_adverbs = list({adverb["word"]: adverb for adverb in self.adverbs}.values())
-        return self.all_adverbs
+        adverbs = self.indirectly_extend_word_lists("adv")
+        return list({adverb["word"]: adverb for adverb in adverbs}.values())
 
 
 class HaikuGenerator(PoemGenerator):
@@ -173,13 +162,16 @@ class HaikuGenerator(PoemGenerator):
         current_wordtype = random.choice(["adj", "n", "v"])
 
         structure_mapping = {
-            # removed adverbs for now
             "n": {"next": "v", "wordlist": self.get_all_nouns(word)},
-            "v": {"next": "adj", "wordlist": self.get_all_verbs(word)},
-            "adj": {"next": "n", "wordlist": self.get_adjectives(word)},
-            # "adverb": {"next": random.choice(["v", "adj"]),
-            #            "wordlist": get_all_adverbs(word)
-            #            },
+            "v": {
+                "next": random.choices(["adj", "adv"], weights=[0.9, 0.1])[0],
+                "wordlist": self.get_all_verbs(word),
+            },
+            "adj": {
+                "next": random.choices(["n", "adv"], weights=[0.9, 0.1])[0],
+                "wordlist": self.get_adjectives(word),
+            },
+            "adv": {"next": random.choice(["v", "adj"]), "wordlist": self.get_all_adverbs(word)},
         }
 
         used_words = []
@@ -200,7 +192,7 @@ class HaikuGenerator(PoemGenerator):
                 word_to_add = random.choice(current_words) if current_words else None
 
                 if word_to_add and word_to_add["word"] in used_words and error_count < 10:
-                    # no duplicates please
+                    # minimize duplicates please
                     continue
 
                 elif word_to_add:
@@ -233,13 +225,6 @@ def main():
     pg = HaikuGenerator(word=keyword, starts_with=starts_with)
 
     print(pg.build_haiku())
-
-    # # very basic tests
-    # assert isinstance(result, str)
-    # result_as_list = json.loads(result)
-    # assert isinstance(result_as_list, list)
-    # assert isinstance(result_as_list[0], dict)
-    # assert len(result_as_list) == n
 
 
 if __name__ == "__main__":
