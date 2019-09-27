@@ -1,20 +1,18 @@
-import random
-
-# from botocore.vendored import requests
-import requests
-import time
 import json
+import random
+# from botocore.vendored import requests  # for AWS lambda
+import requests  # for local development
+from typing import Tuple
 
 
 DATAMUSE_FULL_APIBASE = "https://api.datamuse.com/words?md=sp&sp=s*"
 DATAMUSE_APIBASE = "https://api.datamuse.com/words?md=sp"
-DATAMUSE_LIMIT_ARG = "&max={}"
 DATAMUSE_STARTSWITH_ARG = "&sp={}*"
 LINE_SPACE = "\n"
 
 
 def respond(err, res=None):
-    print(res)
+    print(res)  # adds the generated Haiku to the CloudWatch logs
     return {
         "statusCode": 400 if err else 200,
         "body": err.message if err else json.dumps(res),
@@ -55,41 +53,22 @@ class PoemGenerator:
         self.word = word
         self.starts_with = starts_with
 
-        self.nouns = []
-        self.verbs = []
-        self.adjectives = []
-        self.adverbs = []
-        self.associated_words = []
-        self.synonyms = []
-        self.kindof_words = []
-        self.preceding_words = []
-        self.following_words = []
+        # prime the word lists
+        self.nouns = self.get_nouns(word)
+        self.verbs = self.get_verbs(word)
+        self.adjectives = self.get_adjectives(word)
+        # self.adverbs =  self.get_adverbs(word)
+        self.associated_words = self.get_associated_words(word)
+        self.synonyms = self.get_synonyms(word)
+        self.kindof_words = self.get_kindof_words(word)
+        self.preceding_words = self.get_preceding_words(word)
+        self.following_words = self.get_following_words(word)
 
-        self.all_verbs = []
-        self.all_nouns = []
-        self.all_adverbs = []
-        self.all_adjectives = []
+        self.all_nouns = self.get_all_nouns(word)
+        self.all_verbs = self.get_all_verbs(word)
+        self.all_adjectives = self.get_all_adjectives(word)
+        # self.all_adverbs = []
 
-        self.prime_word_lists(self.word)
-
-    def prime_word_lists(self, word):
-        start_time = time.time()
-        self.get_nouns(word)
-        self.get_verbs(word)
-        self.get_adjectives(word)
-        # self.get_adverbs(word)
-        # print('time0001:: ', time.time() - start_time)
-        self.get_associated_words(word)
-        self.get_synonyms(word)
-        self.get_kindof_words(word)
-        self.get_preceding_words(word)
-        self.get_following_words(word)
-        # print('time0002:: ', time.time() - start_time)
-
-        self.get_all_nouns(word)
-        self.get_all_verbs(word)
-        self.get_all_adjectives(word)
-        # print('time0003:: ', time.time() - start_time)
 
     def request_words(self, url, starts_with: str = "") -> list:
         """
@@ -100,10 +79,8 @@ class PoemGenerator:
                 [{'word': 'level', 'score': 31451, 'numSyllables': 2},
                  {'word': 'water', 'score': 16450, 'numSyllables': 2}]
         """
-        if starts_with:
-            url += DATAMUSE_STARTSWITH_ARG.format(starts_with)
-        elif self.starts_with:
-            url += DATAMUSE_STARTSWITH_ARG.format(self.starts_with)
+        if starts_with or self.starts_with:
+            url += DATAMUSE_STARTSWITH_ARG.format(starts_with or self.starts_with)
 
         return requests.get(url).json()
 
@@ -119,17 +96,14 @@ class PoemGenerator:
         return self.request_words(related_words_url)
 
     def get_nouns(self, word: str) -> list:
-        self.nouns = self.request_words(f"{DATAMUSE_APIBASE}&rel_jja={word}")
-        return self.nouns
+        return self.request_words(f"{DATAMUSE_APIBASE}&rel_jja={word}")
 
     def get_verbs(self, word: str) -> list:
         related_words = self.get_related_words(word)
-        self.verbs = [word for word in related_words if "tags" in word and "v" in word["tags"]]
-        return self.verbs
+        return [word for word in related_words if "tags" in word and "v" in word["tags"]]
 
     def get_adjectives(self, word: str) -> list:
-        self.adjectives = self.request_words(f"{DATAMUSE_APIBASE}&rel_jjb={word}")
-        return self.adjectives
+        return self.request_words(f"{DATAMUSE_APIBASE}&rel_jjb={word}")
 
     def get_associated_words(self, word: str) -> list:
         """ Trigger words """
@@ -154,8 +128,8 @@ class PoemGenerator:
 
     def indirectly_extend_word_lists(self, word_type_identifier="n"):
         extra_words = []
-        extra_words.extend(self.synonyms)
         extra_words.extend(self.associated_words)
+        extra_words.extend(self.synonyms)
         extra_words.extend(self.kindof_words)
         extra_words.extend(self.preceding_words)
         extra_words.extend(self.following_words)
@@ -180,33 +154,23 @@ class PoemGenerator:
         )
         return self.all_adjectives
 
-    # def get_all_adverbs(self, word: str = "") -> list:
-    #     self.adverbs.extend(self.indirectly_extend_word_lists("v"))
-    #     self.all_adverbs = list({adverb["word"]: adverb for adverb in self.adverbs}.values())
-    #     return self.all_adverbs
+    def get_all_adverbs(self, word: str = "") -> list:
+        """ Not yet in use """
+        self.adverbs.extend(self.indirectly_extend_word_lists("v"))
+        self.all_adverbs = list({adverb["word"]: adverb for adverb in self.adverbs}.values())
+        return self.all_adverbs
 
 
 class HaikuGenerator(PoemGenerator):
-    def build_haiku(self, word=None) -> list:
+    def build_haiku(self, word=None) -> Tuple[str, str, str]:
 
         haiku_syllables = [5, 7, 5]
         haiku_result = []
 
-        if not word:
+        if not word and self.word:
             word = self.word
 
         current_wordtype = random.choice(["adj", "n", "v"])
-
-        # nouns = self.all_nouns
-        # verbs = self.get_verbs(word)
-        # adjectives = self.get_adjectives(word)
-        #
-        # structure_mapping = {
-        #     "noun": {"next": ["verb"]},
-        #     "verb": {"next": ["noun", "adjective", "adverb"]},
-        #     "adjective": {"next": ["noun"]},
-        #     "adverb": {"next": ["verb", "adjective", "adverb"]},
-        # }
 
         structure_mapping = {
             # removed adverbs for now
@@ -233,7 +197,6 @@ class HaikuGenerator(PoemGenerator):
                     for _word in structure_mapping[current_wordtype]["wordlist"]
                     if ("numSyllables" in _word and _word["numSyllables"] <= syllable_target)
                 ]
-                #  current_words = structure_mapping[current_wordtype]["wordlist"]
                 word_to_add = random.choice(current_words) if current_words else None
 
                 if word_to_add and word_to_add["word"] in used_words and error_count < 10:
@@ -242,17 +205,12 @@ class HaikuGenerator(PoemGenerator):
 
                 elif word_to_add:
                     used_words.append(word_to_add["word"])
-                    #  current_line.append(word_to_add["word"]+":"+current_wordtype)
                     current_line.append(word_to_add["word"])
                     syllable_target -= word_to_add["numSyllables"]
 
                 current_wordtype = structure_mapping[current_wordtype]["next"]
 
-                # print(current_line)
             haiku_result.append(current_line)
-
-        #     print(haiku_result)
-        # print(haiku_result)
 
         return " ".join(haiku_result[0]), " ".join(haiku_result[1]), " ".join(haiku_result[2])
 
