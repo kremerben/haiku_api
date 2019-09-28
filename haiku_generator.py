@@ -65,10 +65,10 @@ class PoemGenerator:
         self.preceding_words = self.get_preceding_words(word)
         self.following_words = self.get_following_words(word)
 
-        self.all_nouns = self.get_all_nouns(word)
-        self.all_verbs = self.get_all_verbs(word)
-        self.all_adjectives = self.get_all_adjectives(word)
-        self.all_adverbs = self.get_all_adverbs(word)
+        self.all_nouns = self.get_all_nouns()
+        self.all_verbs = self.get_all_verbs()
+        self.all_adjectives = self.get_all_adjectives()
+        self.all_adverbs = self.get_all_adverbs()
 
     def request_words(self, url, starts_with: str = "") -> list:
         """
@@ -132,46 +132,44 @@ class PoemGenerator:
             word for word in extra_words if "tags" in word and word_type_identifier in word["tags"]
         ]
 
-    def get_all_nouns(self, word: str = "") -> list:
+    def get_all_nouns(self) -> list:
         self.nouns.extend(self.indirectly_extend_word_lists("n"))
         return list({noun["word"]: noun for noun in self.nouns}.values())
 
-    def get_all_verbs(self, word: str = "") -> list:
+    def get_all_verbs(self) -> list:
         self.verbs.extend(self.indirectly_extend_word_lists("v"))
         return list({verb["word"]: verb for verb in self.verbs}.values())
 
-    def get_all_adjectives(self, word: str = "") -> list:
+    def get_all_adjectives(self) -> list:
         self.adjectives.extend(self.indirectly_extend_word_lists("adj"))
         return list({adjective["word"]: adjective for adjective in self.adjectives}.values())
 
-    def get_all_adverbs(self, word: str = "") -> list:
-        """ Not yet in use """
+    def get_all_adverbs(self) -> list:
         adverbs = self.indirectly_extend_word_lists("adv")
         return list({adverb["word"]: adverb for adverb in adverbs}.values())
 
 
 class HaikuGenerator(PoemGenerator):
-    def build_haiku(self, word=None) -> Tuple[str, str, str]:
+    def build_haiku(self) -> Tuple[str, str, str]:
 
         haiku_syllables = [5, 7, 5]
         haiku_result = []
 
-        if not word and self.word:
-            word = self.word
-
         current_wordtype = random.choice(["adj", "n", "v"])
 
         structure_mapping = {
-            "n": {"next": "v", "wordlist": self.get_all_nouns(word)},
+            "n": {"next": "v", "wordlist": self.get_all_nouns()},
             "v": {
-                "next": random.choices(["adj", "adv"], weights=[0.9, 0.1])[0],
-                "wordlist": self.get_all_verbs(word),
+                "next": random.choices(["adj", "adv"], weights=[0.95, 0.05])[0],
+                "wordlist": self.get_all_verbs(),
             },
             "adj": {
-                "next": random.choices(["n", "adv"], weights=[0.9, 0.1])[0],
-                "wordlist": self.get_adjectives(word),
+                "next": random.choices(["n", "adv"], weights=[0.95, 0.05])[0],
+                "wordlist": self.get_all_adjectives(),
             },
-            "adv": {"next": random.choice(["v", "adj"]), "wordlist": self.get_all_adverbs(word)},
+            "adv": {
+                "next": random.choices(["v", "adj"], weights=[0.8, 0.2])[0],
+                "wordlist": self.get_all_adverbs()},
         }
 
         used_words = []
@@ -208,14 +206,17 @@ class HaikuGenerator(PoemGenerator):
 
 
 def main():
-    # Make a list of command line arguments, omitting the [0] element which is the script itself.
+    """ To run this python script locally:
+    format:  $ python3 haiku_generator.py <keyword> <letter>
+    example: $ python3 haiku_generator.py carrot m
+    """
     import sys
 
     args = sys.argv[1:]
     starts_with = ""
 
     if not args:
-        print("usage: <keyword>")
+        print("Haiku generator usage: <keyword: required> <starts with letter: optional>")
         sys.exit(1)
 
     keyword = args[0]
