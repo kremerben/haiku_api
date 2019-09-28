@@ -169,7 +169,8 @@ class HaikuGenerator(PoemGenerator):
             },
             "adv": {
                 "next": random.choices(["v", "adj"], weights=[0.8, 0.2])[0],
-                "wordlist": self.get_all_adverbs()},
+                "wordlist": self.get_all_adverbs(),
+            },
         }
 
         used_words = []
