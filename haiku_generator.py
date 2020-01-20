@@ -1,38 +1,44 @@
-import json
 import random
+from botocore.vendored import requests
 
-# from botocore.vendored import requests  # for AWS lambda
-import requests  # for local development
+# import requests
+import time
 from typing import Tuple
+import json
 
 
-DATAMUSE_FULL_APIBASE = "https://api.datamuse.com/words?md=sp&sp=s*"
+DATAMUSE_APIBASE = "https://api.datamuse.com/words?md=sp&sp=s*"
 DATAMUSE_APIBASE = "https://api.datamuse.com/words?md=sp"
+# DATAMUSE_LIMIT_ARG = "&max={}"
 DATAMUSE_STARTSWITH_ARG = "&sp={}*"
 LINE_SPACE = "\n"
 
 
 def respond(err, res=None):
-    print(res)  # adds the generated Haiku to the CloudWatch logs
+    print(res)
     return {
         "statusCode": 400 if err else 200,
         "body": err.message if err else json.dumps(res),
-        "headers": {"Content-Type": "application/json"},
+        "headers": {"Content-Type": "application/json",},
     }
 
 
 def lambda_handler(event, context):
-    if (
-        not event
-        or event.get("queryStringParameters")
-        or "keyword" not in event["queryStringParameters"]
-    ):
+    if not event or "queryStringParameters" not in event or not event["queryStringParameters"]:
         return respond(
             None,
             "Please add a keyword parameter ex: https://haiku.kremer.dev/?keyword=potato "
             "- starts_with parameter is optional ex: https://haiku.kremer.dev/?keyword=potato&starts_with=v",
         )
     qs_params = event["queryStringParameters"]
+
+    if "keyword" not in qs_params:
+        return respond(
+            None,
+            "Please add a keyword parameter ex: https://haiku.kremer.dev/?keyword=potato "
+            "- starts_with parameter is optional ex: https://haiku.kremer.dev/?keyword=potato&starts_with=v",
+        )
+
     keyword = qs_params["keyword"]
 
     if "starts_with" in qs_params:
@@ -48,8 +54,6 @@ def lambda_handler(event, context):
 
 
 class PoemGenerator:
-    """ Parent Class that gathers all the words """
-
     def __init__(self, word: str = "", starts_with: str = ""):
         self.word = word
         self.starts_with = starts_with
@@ -58,7 +62,7 @@ class PoemGenerator:
         self.nouns = self.get_nouns(word)
         self.verbs = self.get_verbs(word)
         self.adjectives = self.get_adjectives(word)
-
+        # self.adverbs = self.get_adverbs(word)
         self.associated_words = self.get_associated_words(word)
         self.synonyms = self.get_synonyms(word)
         self.kindof_words = self.get_kindof_words(word)
@@ -74,7 +78,7 @@ class PoemGenerator:
         """
             Simple request generator with limit
             :param url: request url
-            :param starts_with: only return words that start with this letter
+            :param starts_with: retrieve only words that start with this letter
             Return:
                 [{'word': 'level', 'score': 31451, 'numSyllables': 2},
                  {'word': 'water', 'score': 16450, 'numSyllables': 2}]
@@ -107,19 +111,24 @@ class PoemGenerator:
 
     def get_associated_words(self, word: str) -> list:
         """ Trigger words """
-        return self.request_words(f"{DATAMUSE_APIBASE}&rel_trg={word}")
+        self.associated_words = self.request_words(f"{DATAMUSE_APIBASE}&rel_trg={word}")
+        return self.associated_words
 
     def get_synonyms(self, word: str) -> list:
-        return self.request_words(f"{DATAMUSE_APIBASE}&rel_syn={word}")
+        self.synonyms = self.request_words(f"{DATAMUSE_APIBASE}&rel_syn={word}")
+        return self.synonyms
 
     def get_kindof_words(self, word: str) -> list:
-        return self.request_words(f"{DATAMUSE_APIBASE}&rel_spc={word}")
+        self.kindof_words = self.request_words(f"{DATAMUSE_APIBASE}&rel_spc={word}")
+        return self.kindof_words
 
     def get_preceding_words(self, word: str) -> list:
-        return self.request_words(f"{DATAMUSE_APIBASE}&rel_bgb={word}")
+        self.preceding_words = self.request_words(f"{DATAMUSE_APIBASE}&rel_bgb={word}")
+        return self.preceding_words
 
     def get_following_words(self, word: str) -> list:
-        return self.request_words(f"{DATAMUSE_APIBASE}&rel_bga={word}")
+        self.following_words = self.request_words(f"{DATAMUSE_APIBASE}&rel_bga={word}")
+        return self.following_words
 
     def indirectly_extend_word_lists(self, word_type_identifier="n"):
         extra_words = []
@@ -191,7 +200,7 @@ class HaikuGenerator(PoemGenerator):
                 word_to_add = random.choice(current_words) if current_words else None
 
                 if word_to_add and word_to_add["word"] in used_words and error_count < 10:
-                    # minimize duplicates please
+                    # no duplicates please
                     continue
 
                 elif word_to_add:
