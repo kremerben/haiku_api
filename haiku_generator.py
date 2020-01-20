@@ -1,21 +1,21 @@
 import random
 from botocore.vendored import requests
 
-# import requests
+# import requests # for local development
 import time
 from typing import Tuple
 import json
 
 
-DATAMUSE_APIBASE = "https://api.datamuse.com/words?md=sp&sp=s*"
+DATAMUSE_FULL_APIBASE = "https://api.datamuse.com/words?md=sp&sp=s*"
 DATAMUSE_APIBASE = "https://api.datamuse.com/words?md=sp"
-# DATAMUSE_LIMIT_ARG = "&max={}"
+DATAMUSE_LIMIT_ARG = "&max={}"
 DATAMUSE_STARTSWITH_ARG = "&sp={}*"
 LINE_SPACE = "\n"
 
 
 def respond(err, res=None):
-    print(res)
+    print(res)  # adds the generated Haiku to the CloudWatch logs
     return {
         "statusCode": 400 if err else 200,
         "body": err.message if err else json.dumps(res),
@@ -54,6 +54,8 @@ def lambda_handler(event, context):
 
 
 class PoemGenerator:
+    """ Parent Class that gathers all the words """
+
     def __init__(self, word: str = "", starts_with: str = ""):
         self.word = word
         self.starts_with = starts_with
@@ -200,7 +202,7 @@ class HaikuGenerator(PoemGenerator):
                 word_to_add = random.choice(current_words) if current_words else None
 
                 if word_to_add and word_to_add["word"] in used_words and error_count < 10:
-                    # no duplicates please
+                    # minimize duplicates please
                     continue
 
                 elif word_to_add:
